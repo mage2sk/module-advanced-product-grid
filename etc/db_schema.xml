@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ *
+ * Single table that stores qty-sold aggregates per product so the grid
+ * can render the column without touching sales_order_item at row time.
+ * The FK to catalog_product_entity is intentionally NOT declared because
+ * mass-import scenarios benchmark slower with it; rows are kept in sync
+ * by the indexer.
+ */
+-->
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="panth_product_grid_qty_sold" resource="default" engine="innodb"
+           comment="Panth Product Grid Extended — qty sold per product aggregate">
+        <column xsi:type="int" name="product_id" padding="10" unsigned="true" nullable="false" comment="Product ID"/>
+        <column xsi:type="int" name="qty_sold" padding="10" unsigned="true" nullable="false" default="0" comment="Aggregated qty sold for the configured period"/>
+        <column xsi:type="timestamp" name="indexed_at" on_update="true" nullable="false"
+                default="CURRENT_TIMESTAMP" comment="Last time this row was recomputed"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="product_id"/>
+        </constraint>
+        <index referenceId="PANTH_PRODUCT_GRID_QTY_SOLD_QTY_SOLD" indexType="btree">
+            <column name="qty_sold"/>
+        </index>
+    </table>
+
+    <table name="panth_product_grid_column_config" resource="default" engine="innodb"
+           comment="Panth Product Grid Extended — per-attribute grid column overrides">
+        <column xsi:type="int" name="config_id" padding="10" unsigned="true" nullable="false" identity="true" comment="Config row ID"/>
+        <column xsi:type="varchar" name="attribute_code" length="64" nullable="false" comment="Attribute code or virtual column code (panth_thumbnail, panth_qty_sold, etc.)"/>
+        <column xsi:type="smallint" name="is_visible" padding="5" unsigned="true" nullable="false" default="0"
+                comment="Show in grid by default (1) or hide (0)"/>
+        <column xsi:type="smallint" name="is_editable" padding="5" unsigned="true" nullable="false" default="0"
+                comment="Inline editable (1) or read-only (0)"/>
+        <column xsi:type="smallint" name="is_filterable" padding="5" unsigned="true" nullable="false" default="1"
+                comment="Filter shown in grid toolbar"/>
+        <column xsi:type="smallint" name="in_export" padding="5" unsigned="true" nullable="false" default="1"
+                comment="Include in CSV/XML exports"/>
+        <column xsi:type="smallint" name="is_required" padding="5" unsigned="true" nullable="false" default="0"
+                comment="Required when editing inline"/>
+        <column xsi:type="varchar" name="custom_label" length="128" nullable="true"
+                comment="Custom display label overriding attribute frontend_label"/>
+        <column xsi:type="int" name="sort_order" padding="10" unsigned="true" nullable="false" default="100"
+                comment="Grid display sort order"/>
+        <column xsi:type="int" name="default_width" padding="10" unsigned="true" nullable="true"
+                comment="Default column width in pixels (null = auto)"/>
+        <column xsi:type="varchar" name="marker_color" length="16" nullable="true"
+                comment="Marker color: none, red, yellow, green, blue, grey"/>
+        <column xsi:type="varchar" name="editor_type_override" length="32" nullable="true"
+                comment="Manual editor type override (text, textarea, select, multiselect, date, price)"/>
+        <column xsi:type="timestamp" name="updated_at" on_update="true" nullable="false"
+                default="CURRENT_TIMESTAMP" comment="Last update time"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="config_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="PANTH_PRODUCT_GRID_COLUMN_CONFIG_ATTR_CODE">
+            <column name="attribute_code"/>
+        </constraint>
+        <index referenceId="PANTH_PRODUCT_GRID_COLUMN_CONFIG_VISIBLE" indexType="btree">
+            <column name="is_visible"/>
+        </index>
+    </table>
+</schema>

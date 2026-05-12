@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ *
+ * Overlay for Magento's standard product_listing UI component.
+ *
+ * Wires the built-in Magento inline editor onto product_columns and adds
+ * our extra columns. Per-column editor types are declared via
+ * <editor><editorType>...</editorType></editor> — Magento's standard JS
+ * (Magento_Ui/js/grid/editing/editor) then handles the click-to-edit,
+ * Save/Cancel banner, and POST to inlineEdit out of the box.
+ *
+ * The Columns subclass auto-discovers every is_used_in_grid EAV attribute
+ * at prepare() time, so we don't enumerate them statically.
+ */
+-->
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <listingToolbar name="listing_top">
+        <massaction name="listing_massaction">
+            <action name="panth_mass_edit">
+                <settings>
+                    <type>panth_mass_edit</type>
+                    <label translate="true">Mass Edit Attributes</label>
+                    <url path="panth_product_grid/massEdit/save"/>
+                </settings>
+            </action>
+        </massaction>
+    </listingToolbar>
+
+    <columns name="product_columns" class="Panth\AdvancedProductGrid\Ui\Component\Listing\Columns">
+        <settings>
+            <editorConfig>
+                <param name="clientConfig" xsi:type="array">
+                    <item name="saveUrl" xsi:type="url" path="panth_product_grid/index/inlineEdit"/>
+                    <item name="validateBeforeSave" xsi:type="boolean">false</item>
+                </param>
+                <param name="indexField" xsi:type="string">entity_id</param>
+                <param name="enabled" xsi:type="boolean">true</param>
+                <param name="selectProvider" xsi:type="string">product_listing.product_listing.product_columns.ids</param>
+            </editorConfig>
+            <childDefaults>
+                <param name="fieldAction" xsi:type="array">
+                    <item name="provider" xsi:type="string">product_listing.product_listing.product_columns_editor</item>
+                    <item name="target" xsi:type="string">startEdit</item>
+                    <item name="params" xsi:type="array">
+                        <item name="0" xsi:type="string">${ $.$data.rowIndex }</item>
+                        <item name="1" xsi:type="boolean">true</item>
+                    </item>
+                </param>
+            </childDefaults>
+        </settings>
+
+        <column name="name" sortOrder="40">
+            <settings>
+                <filter>text</filter>
+                <editor>
+                    <editorType>text</editorType>
+                    <validation>
+                        <rule name="required-entry" xsi:type="boolean">true</rule>
+                    </validation>
+                </editor>
+                <label translate="true">Name</label>
+            </settings>
+        </column>
+
+        <column name="sku" sortOrder="50">
+            <settings>
+                <filter>text</filter>
+                <editor>
+                    <editorType>text</editorType>
+                    <validation>
+                        <rule name="required-entry" xsi:type="boolean">true</rule>
+                    </validation>
+                </editor>
+                <label translate="true">SKU</label>
+            </settings>
+        </column>
+
+        <column name="price" sortOrder="70" class="Panth\AdvancedProductGrid\Ui\Component\Listing\Column\PriceColumn">
+            <settings>
+                <addField>true</addField>
+                <filter>textRange</filter>
+                <editor>
+                    <editorType>text</editorType>
+                </editor>
+                <dataType>price</dataType>
+                <label translate="true">Price</label>
+            </settings>
+        </column>
+
+        <column name="qty" sortOrder="75">
+            <settings>
+                <filter>textRange</filter>
+                <editor>
+                    <editorType>text</editorType>
+                </editor>
+                <dataType>text</dataType>
+                <label translate="true">Quantity</label>
+            </settings>
+        </column>
+
+        <column name="panth_thumbnail" class="Panth\AdvancedProductGrid\Ui\Component\Listing\Column\Thumbnail" sortOrder="11">
+            <settings>
+                <label translate="true">Image</label>
+                <sortable>false</sortable>
+                <visible>false</visible>
+                <hasPreview>1</hasPreview>
+            </settings>
+        </column>
+
+        <column name="panth_availability" sortOrder="65" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <editor>
+                    <editorType>select</editorType>
+                </editor>
+                <label translate="true">Availability</label>
+                <visible>false</visible>
+                <options class="Panth\AdvancedProductGrid\Ui\Component\Listing\Column\AvailabilityOptions"/>
+            </settings>
+        </column>
+
+        <column name="panth_backorders" sortOrder="67" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <editor>
+                    <editorType>select</editorType>
+                </editor>
+                <label translate="true">Backorders</label>
+                <visible>false</visible>
+                <options class="Panth\AdvancedProductGrid\Ui\Component\Listing\Column\BackorderOptions"/>
+            </settings>
+        </column>
+
+        <column name="panth_low_stock" sortOrder="68" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Low Stock</label>
+                <visible>false</visible>
+                <options class="Magento\Config\Model\Config\Source\Yesno"/>
+            </settings>
+        </column>
+
+        <column name="panth_qty_sold" sortOrder="71">
+            <settings>
+                <filter>textRange</filter>
+                <dataType>text</dataType>
+                <label translate="true">Qty Sold</label>
+                <visible>false</visible>
+            </settings>
+        </column>
+
+        <column name="panth_tier_price_label" sortOrder="80">
+            <settings>
+                <filter>false</filter>
+                <sortable>false</sortable>
+                <dataType>text</dataType>
+                <label translate="true">Tier Prices</label>
+                <visible>false</visible>
+            </settings>
+        </column>
+
+        <column name="panth_storefront_url" sortOrder="90">
+            <settings>
+                <filter>false</filter>
+                <sortable>false</sortable>
+                <dataType>text</dataType>
+                <label translate="true">Frontend Link</label>
+                <visible>false</visible>
+            </settings>
+        </column>
+
+        <!--
+            Cost / Special Price / Weight / Created At are intentionally
+            NOT redeclared here. They're real EAV attributes flagged
+            `is_used_in_grid=1`, so the Columns subclass auto-discovers
+            them at prepare() time via ColumnFactory which wires the
+            correct editor + filter + addField config. Re-declaring
+            in XML was producing a half-merged config that silently
+            blocked the inline editor from rendering an input.
+        -->
+    </columns>
+</listing>

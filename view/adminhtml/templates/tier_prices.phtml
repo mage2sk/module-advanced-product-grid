@@ -1,0 +1,75 @@
+<?php
+/**
+ * @var \Panth\AdvancedProductGrid\Block\Adminhtml\Product\Grid\TierPrice\Content $block
+ */
+$product = $block->getProduct();
+$productId = $product ? (int)$product->getId() : 0;
+$websites = $block->getWebsiteOptions();
+$groups = $block->getCustomerGroupOptions();
+$rows = $block->getTierPriceRows();
+?>
+<div class="panth-pg-tier-price-modal"
+     data-bind="scope: 'panthPgTierPriceModal'"
+     data-product-id="<?= $productId ?>">
+    <script type="text/x-magento-init">
+    {
+        "*": {
+            "Magento_Ui/js/core/app": {
+                "components": {
+                    "panthPgTierPriceModal": {
+                        "component": "Panth_AdvancedProductGrid/js/modal/tier-prices",
+                        "productId": <?= $productId ?>,
+                        "websites": <?= /* @noEscape */ json_encode($websites, JSON_UNESCAPED_UNICODE) ?>,
+                        "groups": <?= /* @noEscape */ json_encode($groups, JSON_UNESCAPED_UNICODE) ?>,
+                        "rows": <?= /* @noEscape */ json_encode($rows, JSON_UNESCAPED_UNICODE) ?>
+                    }
+                }
+            }
+        }
+    }
+    </script>
+    <table class="data-table panth-pg-tier-price-table">
+        <thead>
+            <tr>
+                <th><?= $block->escapeHtml(__('Website')) ?></th>
+                <th><?= $block->escapeHtml(__('Customer Group')) ?></th>
+                <th><?= $block->escapeHtml(__('Qty')) ?></th>
+                <th><?= $block->escapeHtml(__('Type')) ?></th>
+                <th><?= $block->escapeHtml(__('Value')) ?></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody data-bind="foreach: rows">
+            <tr>
+                <td>
+                    <select data-bind="options: $parent.websites, optionsValue: 'value', optionsText: 'label', value: website_id"></select>
+                </td>
+                <td>
+                    <select data-bind="options: $parent.groups, optionsValue: 'value', optionsText: 'label', value: cust_group"></select>
+                </td>
+                <td>
+                    <input type="number" min="1" step="any" data-bind="value: qty, valueUpdate: 'input'"/>
+                </td>
+                <td>
+                    <select data-bind="value: value_type">
+                        <option value="fixed"><?= $block->escapeHtml(__('Fixed')) ?></option>
+                        <option value="percent"><?= $block->escapeHtml(__('Discount %')) ?></option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" min="0" step="any" data-bind="value: value, valueUpdate: 'input'"/>
+                </td>
+                <td>
+                    <button type="button" class="action-delete" data-bind="click: $parent.removeRow.bind($parent, $data)">
+                        <?= $block->escapeHtml(__('Remove')) ?>
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="actions">
+        <button type="button" class="action-secondary" data-bind="click: addRow">
+            <?= $block->escapeHtml(__('Add Tier')) ?>
+        </button>
+    </div>
+</div>

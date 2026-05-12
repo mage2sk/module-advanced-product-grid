@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <!--
+        Pre-seed a zero row when a new product is saved so the indexer
+        has an entry to update later. Avoids "missing row" branches in
+        the data provider plugin.
+    -->
+    <event name="catalog_product_save_after">
+        <observer name="panth_product_grid_seed_qty_sold"
+                  instance="Panth\AdvancedProductGrid\Observer\ProductSaveAfter"/>
+    </event>
+    <!-- Mark affected products dirty when an order is saved. -->
+    <event name="sales_order_save_after">
+        <observer name="panth_product_grid_invalidate_qty_sold"
+                  instance="Panth\AdvancedProductGrid\Observer\OrderSaveAfter"/>
+    </event>
+</config>

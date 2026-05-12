@@ -1,0 +1,150 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <section id="panth_product_grid" translate="label" type="text" sortOrder="155"
+                 showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>Product Grid Extended</label>
+            <tab>panth</tab>
+            <resource>Panth_AdvancedProductGrid::config</resource>
+
+            <group id="general" translate="label" type="text" sortOrder="10"
+                   showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>General</label>
+                <field id="enabled" translate="label comment" type="select" sortOrder="10"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Enable Extended Grid</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Turns the extended catalog product grid on. When disabled, the grid reverts to vanilla Magento behavior with no JS or DI injected.</comment>
+                </field>
+            </group>
+
+            <group id="editing" translate="label" type="text" sortOrder="20"
+                   showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>Inline Editing</label>
+                <field id="mode" translate="label comment" type="select" sortOrder="10"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Editing Mode</label>
+                    <source_model>Panth\AdvancedProductGrid\Model\Config\Source\EditMode</source_model>
+                    <comment><![CDATA[<b>Single Cell</b>: every change is saved as soon as the cell loses focus.<br/>
+                        <b>Multi Cell</b>: changes accumulate; click Save in the floating banner to commit them.]]></comment>
+                    <depends>
+                        <field id="panth_product_grid/general/enabled">1</field>
+                    </depends>
+                </field>
+                <field id="confirm_navigation" translate="label comment" type="select" sortOrder="20"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Warn About Unsaved Changes</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Pop a confirmation dialog if the admin tries to change page / filter / sort / mass action with unsaved edits in the grid.</comment>
+                    <depends>
+                        <field id="mode">multi</field>
+                    </depends>
+                </field>
+            </group>
+
+            <group id="columns" translate="label" type="text" sortOrder="30"
+                   showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>Column Behavior</label>
+                <field id="linked_products_qty" translate="label comment" type="text" sortOrder="10"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Related / Up-sell / Cross-sell Display Count</label>
+                    <validate>validate-number validate-greater-than-zero</validate>
+                    <comment>How many related/up-sell/cross-sell items to render inline in the cell before truncating to "+N more".</comment>
+                    <depends>
+                        <field id="panth_product_grid/general/enabled">1</field>
+                    </depends>
+                </field>
+                <field id="low_stock_threshold" translate="label comment" type="text" sortOrder="20"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Low-stock Threshold</label>
+                    <validate>validate-number</validate>
+                    <comment>A product's Low Stock column lights up when its qty is at or below this number.</comment>
+                    <depends>
+                        <field id="panth_product_grid/general/enabled">1</field>
+                    </depends>
+                </field>
+            </group>
+
+            <group id="qty_sold" translate="label" type="text" sortOrder="40"
+                   showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>Qty Sold Indexer</label>
+                <field id="enabled" translate="label comment" type="select" sortOrder="10"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Enable Qty Sold Column</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Aggregates ordered quantity per product into its own indexed table. Disable on huge sales tables if reindex pressure becomes a problem.</comment>
+                </field>
+                <field id="date_from" translate="label comment" type="text" sortOrder="20"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Date From</label>
+                    <comment>Absolute YYYY-MM-DD or relative offset accepted by strtotime, e.g. <code>-90 days</code>.</comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="date_to" translate="label comment" type="text" sortOrder="30"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Date To</label>
+                    <comment>Absolute YYYY-MM-DD or relative offset, e.g. <code>now</code>.</comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="statuses" translate="label comment" type="multiselect" sortOrder="40"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Order Statuses to Count</label>
+                    <source_model>Magento\Sales\Model\Config\Source\Order\Status</source_model>
+                    <comment>Only items on orders in the selected statuses count toward qty sold.</comment>
+                    <backend_model>Panth\AdvancedProductGrid\Model\Config\Backend\QtySoldInvalidate</backend_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="include_refunded" translate="label comment" type="select" sortOrder="50"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Subtract Refunded Quantities</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>When Yes, qty_refunded is subtracted from qty_ordered. When No, the raw ordered quantity is used.</comment>
+                    <backend_model>Panth\AdvancedProductGrid\Model\Config\Backend\QtySoldInvalidate</backend_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+            </group>
+
+            <group id="modification" translate="label" type="text" sortOrder="50"
+                   showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>Save Behavior</label>
+                <field id="qty_to_stock" translate="label comment" type="select" sortOrder="10"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Auto-flip Stock Status on Qty Change</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>When the admin edits qty, set is_in_stock automatically (qty &gt; 0 → in stock; qty = 0 → out of stock) and clear use_config_manage_stock.</comment>
+                </field>
+                <field id="show_qty_integer" translate="label comment" type="select" sortOrder="20"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Show Qty as Integer</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Round qty values to integer in the grid display. Underlying storage stays decimal.</comment>
+                </field>
+            </group>
+
+            <group id="export" translate="label" type="text" sortOrder="60"
+                   showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>Export</label>
+                <field id="visible_columns_only" translate="label comment" type="select" sortOrder="10"
+                       showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Export Visible Columns Only</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>CSV/XML exports include only the columns currently visible in the bookmark, in the order they appear on screen. Resolves option labels and unpacks per-source qty.</comment>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="Panth_AdvancedProductGrid::group"
+             title="Product Grid Extended"
+             module="Panth_AdvancedProductGrid"
+             sortOrder="55"
+             parent="Panth_Core::panth_extensions"
+             resource="Panth_AdvancedProductGrid::product_grid"/>
+        <add id="Panth_AdvancedProductGrid::open_grid"
+             title="Open Extended Grid"
+             module="Panth_AdvancedProductGrid"
+             sortOrder="10"
+             parent="Panth_AdvancedProductGrid::group"
+             action="catalog/product/index"
+             resource="Panth_AdvancedProductGrid::inline_edit"/>
+        <add id="Panth_AdvancedProductGrid::settings"
+             title="Configuration"
+             module="Panth_AdvancedProductGrid"
+             sortOrder="90"
+             parent="Panth_AdvancedProductGrid::group"
+             action="adminhtml/system_config/edit/section/panth_product_grid"
+             resource="Panth_AdvancedProductGrid::config"/>
+    </menu>
+</config>

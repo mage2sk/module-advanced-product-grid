@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Acl/etc/acl.xsd">
+    <acl>
+        <resources>
+            <resource id="Magento_Backend::admin">
+                <resource id="Panth_Core::panth_extensions">
+                    <resource id="Panth_AdvancedProductGrid::product_grid" title="Product Grid Extended" sortOrder="55">
+                        <resource id="Panth_AdvancedProductGrid::inline_edit" title="Inline Edit Products" sortOrder="10"/>
+                        <resource id="Panth_AdvancedProductGrid::tier_price" title="Edit Tier Prices" sortOrder="20"/>
+                        <resource id="Panth_AdvancedProductGrid::manage_gallery" title="Edit Product Gallery" sortOrder="30"/>
+                        <resource id="Panth_AdvancedProductGrid::config" title="Configuration" sortOrder="90"/>
+                    </resource>
+                </resource>
+            </resource>
+        </resources>
+    </acl>
+</config>

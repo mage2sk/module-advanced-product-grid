@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ *
+ * All admin-only wiring for the extended grid lives here so the
+ * frontend area never instantiates these classes.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <!-- Enrich the data provider rows with computed columns. -->
+    <type name="Magento\Catalog\Ui\DataProvider\Product\ProductDataProvider">
+        <plugin name="panth_product_grid_data_provider"
+                type="Panth\AdvancedProductGrid\Plugin\Catalog\Ui\DataProvider\ProductDataProviderPlugin"
+                sortOrder="100"/>
+        <plugin name="panth_product_grid_filter_rewriter"
+                type="Panth\AdvancedProductGrid\Plugin\Catalog\Ui\DataProvider\ProductDataProviderFilterPlugin"
+                sortOrder="50"/>
+        <arguments>
+            <argument name="addFilterStrategies" xsi:type="array">
+                <item name="panth_pg_categories" xsi:type="object">Panth\AdvancedProductGrid\Ui\DataProvider\Product\AddCategoryFilterToCollection</item>
+                <item name="panth_pg_availability" xsi:type="object">Panth\AdvancedProductGrid\Ui\DataProvider\Product\AddAvailabilityFilterToCollection</item>
+                <item name="panth_pg_qty_sold" xsi:type="object">Panth\AdvancedProductGrid\Ui\DataProvider\Product\AddQtySoldFilterToCollection</item>
+                <item name="panth_pg_thumbnail" xsi:type="object">Panth\AdvancedProductGrid\Ui\DataProvider\Product\AddThumbnailFilterToCollection</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- Custom export limited to the columns visible in the grid bookmark. -->
+    <type name="Magento\Ui\Model\Export\ConvertToCsv">
+        <plugin name="panth_product_grid_export_csv"
+                type="Panth\AdvancedProductGrid\Plugin\Ui\Model\Export\CsvExport"
+                sortOrder="100"/>
+    </type>
+    <type name="Magento\Ui\Model\Export\ConvertToXml">
+        <plugin name="panth_product_grid_export_xml"
+                type="Panth\AdvancedProductGrid\Plugin\Ui\Model\Export\XmlExport"
+                sortOrder="100"/>
+    </type>
+
+    <!-- Fallback sort fix for Country of Manufacture (default scope → store scope). -->
+    <type name="Magento\Catalog\Model\Product\Attribute\Source\Countryofmanufacture">
+        <plugin name="panth_product_grid_country_sort_fallback"
+                type="Panth\AdvancedProductGrid\Plugin\Catalog\Model\Product\Attribute\Source\CountryofmanufactureSortingPlugin"
+                sortOrder="10"/>
+    </type>
+
+    <!-- Categories source uses a lazy proxy so admin pages without the grid don't load it. -->
+    <type name="Panth\AdvancedProductGrid\Model\Config\Source\Categories">
+        <arguments>
+            <argument name="categoryCollectionFactory" xsi:type="object">Magento\Catalog\Model\ResourceModel\Category\CollectionFactory\Proxy</argument>
+        </arguments>
+    </type>
+
+    <!--
+        Magento\InventorySalesAdminUi\Ui\Component\Listing\Column\SalableQuantity
+        declares `int $maximumStocksToShow` with strict_types=1, but the core
+        di.xml ships it as `xsi:type="number"` which Magento's compiled DI
+        emits as a string. On some Magento builds the resolver loses the
+        value entirely and passes null — fataling every AJAX render of the
+        product grid (paging, sorting, filtering all break silently).
+        Force-inject a concrete int via `xsi:type="number"` here in our own
+        di.xml so the compiled metadata picks it up reliably.
+    -->
+    <type name="Magento\InventorySalesAdminUi\Ui\Component\Listing\Column\SalableQuantity">
+        <arguments>
+            <argument name="maximumStocksToShow" xsi:type="number">15</argument>
+        </arguments>
+    </type>
+
+</config>

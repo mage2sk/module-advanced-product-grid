@@ -1,0 +1,862 @@
+<?php
+/**
+ * Inline bootstrap for the Manage Columns smart panel + rename modal.
+ *
+ * The admin URLs are emitted server-side via UrlInterface so they include
+ * the admin frontName + secret key (Magento admin URLs aren't computable
+ * client-side from window.BASE_URL on the front-end).
+ *
+ * @var \Magento\Backend\Block\Template $block
+ */
+$objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+$mediaConfig = $objectManager->get(\Magento\Catalog\Model\Product\Media\Config::class);
+$urls = [
+    'rename'    => $block->getUrl('panth_product_grid/columnManager/renameFromGrid'),
+    'list'      => $block->getUrl('panth_product_grid/columnManager/listColumns'),
+    'save'      => $block->getUrl('panth_product_grid/columnManager/inlineEdit'),
+    'reset'     => $block->getUrl('panth_product_grid/columnManager/reset'),
+    'cellForm'  => $block->getUrl('panth_product_grid/cellEdit/form'),
+    'cellSave'  => $block->getUrl('panth_product_grid/index/inlineEdit'),
+    'upload'    => $block->getUrl('panth_product_grid/cellEdit/upload'),
+    'mediaUrl'  => $mediaConfig->getMediaUrl(''),
+];
+
+// Build the list of attribute codes that should open the popup editor
+// on cell click (any multiselect or textarea). The hardcoded set in JS
+// covers virtual + well-known codes; this dynamic list adds every other
+// product attribute matching those input types so Material / Color /
+// etc. all open the right editor.
+$popupCodes = ['tier_price', 'panth_tier_price_label',
+    'category_ids', 'panth_categories',
+    'description', 'short_description',
+    'content', 'content_heading', 'page_content', 'block_content',
+    'thumbnail', 'image', 'small_image', 'panth_thumbnail'];
+try {
+    $eavCfg = $objectManager->get(\Magento\Eav\Model\Config::class);
+    $attrCollection = $objectManager->create(
+        \Magento\Eav\Model\ResourceModel\Entity\Attribute\Collection::class
+    );
+    $entityType = $eavCfg->getEntityType(\Magento\Catalog\Model\Product::ENTITY);
+    $attrCollection->setEntityTypeFilter((int)$entityType->getId())
+        ->addFieldToFilter('frontend_input', ['in' => ['multiselect', 'textarea']]);
+    foreach ($attrCollection as $attr) {
+        $popupCodes[] = (string)$attr->getAttributeCode();
+    }
+} catch (\Throwable) {
+    // Fall back to the hardcoded list if EAV introspection fails.
+}
+$popupCodes = array_values(array_unique($popupCodes));
+?>
+<script>
+window.panthPgUrls = <?= /* @noEscape */ json_encode($urls, JSON_UNESCAPED_SLASHES) ?>;
+window.panthPgPopupCodes = <?= /* @noEscape */ json_encode($popupCodes, JSON_UNESCAPED_SLASHES) ?>;
+require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/js/modal/prompt', 'Magento_Ui/js/modal/alert', 'mage/translate', 'domReady!'], function ($, ko, registry, modal, prompt, alert, $t) {
+    'use strict';
+
+    var URLS = window.panthPgUrls || {};
+    var ENDPOINT = URLS.rename;
+
+    function postRename(code, newLabel, fallback) {
+        $.ajax({
+            url: ENDPOINT,
+            method: 'POST',
+            data: {
+                form_key: window.FORM_KEY || '',
+                attribute_code: code,
+                custom_label: newLabel
+            },
+            dataType: 'json'
+        }).done(function (response) {
+            if (response && response.success) { location.reload(); }
+            else {
+                alert({
+                    title: $t('Rename failed'),
+                    content: (response && response.error) || $t('Server rejected the new label.')
+                });
+            }
+        }).fail(function (xhr) {
+            alert({
+                title: $t('Rename failed'),
+                content: $t('Server error: ') + (xhr.statusText || 'unknown')
+            });
+        });
+    }
+
+    function openRenamePrompt(code, currentLabel) {
+        prompt({
+            title: $t('Rename Column'),
+            content: $t('Set a custom label for column code:') + ' <strong>' + code + '</strong>',
+            value: currentLabel,
+            actions: {
+                confirm: function (value) {
+                    var trimmed = (value || '').trim();
+                    if (!trimmed || trimmed === currentLabel) { return; }
+                    postRename(code, trimmed);
+                }
+            }
+        });
+    }
+
+    // 1) Double-click on a column header in the grid table.
+    $(document).on('dblclick.panthRenameCol', 'table.data-grid thead th', function (event) {
+        var $th = $(this);
+        var code = $th.attr('data-index') || $th.attr('data-column') || $th.find('[data-column]').first().attr('data-column') || '';
+        if (!code) { return; }
+        event.preventDefault();
+        event.stopPropagation();
+
+        var $content = $th.find('.data-grid-cell-content, span').first();
+        var currentLabel = ($content.length ? $content.text() : $th.text()).trim();
+
+        openRenamePrompt(code, currentLabel);
+    });
+
+    // 2) Inject a "⚙ Manage Columns" button next to the native Columns
+    //    dropdown. Clicking it opens a slide-in modal with the full smart
+    //    panel — tabbed by group, inline rename, toggles, sort order.
+    /**
+     * Replace Magento's native Columns dropdown with our own trigger that
+     * uses the SAME admin__action-dropdown markup (so the chevron icon
+     * and styles all match), but opens our centered Manage Columns popup
+     * instead of the built-in checkbox list. We hide the native wrap so
+     * admins only see one button.
+     */
+    function injectManageButton() {
+        var $native = $('.admin__data-grid-action-columns').first();
+        if (!$native.length || $native.siblings('.panth-pg-cols-trigger').length) {
+            return;
+        }
+        var $trigger = $(
+            '<div class="admin__action-dropdown-wrap panth-pg-cols-trigger">' +
+                '<button class="admin__action-dropdown" type="button">' +
+                    '<span class="admin__action-dropdown-text">' + $t('Columns') + '</span>' +
+                '</button>' +
+            '</div>'
+        );
+        $trigger.find('button').on('click', function (event) {
+            event.preventDefault();
+            openSmartPanel();
+        });
+        $native.hide().before($trigger);
+    }
+
+    function buildSmartPanel(columns) {
+        var groups = ['standard', 'pricing', 'inventory', 'seo', 'attributes', 'extras'];
+        var groupLabels = { standard: 'Standard', pricing: 'Pricing', inventory: 'Inventory', seo: 'SEO', attributes: 'Attributes', extras: 'Extras' };
+        var grouped = {};
+        groups.forEach(function (g) { grouped[g] = []; });
+        columns.forEach(function (col) {
+            var g = col.group || 'attributes';
+            grouped[g] = grouped[g] || [];
+            grouped[g].push(col);
+        });
+
+        var pending = {};
+        var $body = $('<div class="panth-pg-cols-panel"></div>');
+        var $tabs = $('<nav class="panth-pg-cols-panel__tabs"></nav>');
+        var $content = $('<div class="panth-pg-cols-panel__content"></div>');
+        var activeGroup = 'standard';
+
+        function recordPending(code, field, value) {
+            pending[code] = pending[code] || {};
+            pending[code][field] = value;
+            $body.find('.panth-pg-cols-panel__dirty').show();
+        }
+
+        function renderGroup(g) {
+            $content.empty();
+            (grouped[g] || []).forEach(function (col) {
+                var $row = $('<div class="panth-pg-cols-panel__row"></div>');
+
+                // Binding change events on the inner <input> (not the wrapping
+                // <label>) so `this.checked` resolves correctly. Earlier we
+                // attached to the label, where `this.checked` is undefined and
+                // every toggle silently saved as 0.
+                var $vis = $('<label class="panth-pg-cols-panel__switch"><input type="checkbox"><span class="slider"></span></label>');
+                var $visInput = $vis.find('input').prop('checked', !!col.is_visible);
+                $visInput.on('change', function () {
+                    recordPending(col.code, 'is_visible', this.checked ? 1 : 0);
+                });
+
+                var $label = $('<div class="panth-pg-cols-panel__label"></div>');
+                var $name = $('<input type="text" class="admin__control-text" />');
+                $name.attr('placeholder', col.label).val(col.custom_label || '');
+                $name.on('change', function () { recordPending(col.code, 'custom_label', $(this).val().trim()); });
+                var $code = $('<small></small>').text(col.code);
+                $label.append($name).append($code);
+
+                var $type = $('<span class="panth-pg-cols-panel__type"></span>').text(col.type || 'text').addClass('t-' + (col.type || 'text'));
+
+                var $edit = $('<label class="panth-pg-cols-panel__chip"><input type="checkbox"><span>' + $t('Edit') + '</span></label>');
+                var $editInput = $edit.find('input').prop('checked', !!col.is_editable);
+                $editInput.on('change', function () { recordPending(col.code, 'is_editable', this.checked ? 1 : 0); });
+
+                var $filter = $('<label class="panth-pg-cols-panel__chip"><input type="checkbox"><span>' + $t('Filter') + '</span></label>');
+                var $filterInput = $filter.find('input').prop('checked', !!col.is_filterable);
+                $filterInput.on('change', function () { recordPending(col.code, 'is_filterable', this.checked ? 1 : 0); });
+
+                var $order = $('<input type="number" class="admin__control-text panth-pg-cols-panel__order" min="0" step="1" />').val(col.sort_order || 100);
+                $order.on('change', function () { recordPending(col.code, 'sort_order', parseInt($(this).val(), 10) || 100); });
+
+                $row.append($vis).append($label).append($type).append($edit).append($filter).append($order);
+                $content.append($row);
+            });
+
+            if (($content.children().length) === 0) {
+                $content.append($('<div class="panth-pg-cols-panel__empty"></div>').text($t('No columns in this section.')));
+            }
+        }
+
+        groups.forEach(function (g) {
+            var count = (grouped[g] || []).length;
+            if (count === 0) { return; }
+            var $tab = $('<button type="button"></button>').text(groupLabels[g] + ' (' + count + ')');
+            if (g === activeGroup) { $tab.addClass('_active'); }
+            $tab.on('click', function () {
+                $tabs.find('button').removeClass('_active');
+                $tab.addClass('_active');
+                activeGroup = g;
+                renderGroup(g);
+            });
+            $tabs.append($tab);
+        });
+
+        var $dirty = $('<div class="panth-pg-cols-panel__dirty"></div>').text($t('You have unsaved changes — click Apply to save.')).hide();
+
+        $body.append($tabs).append($content).append($dirty);
+        renderGroup(activeGroup);
+
+        var $modal = modal({
+            title: $t('Manage Columns'),
+            modalClass: 'panth-pg-cols-modal',
+            type: 'popup',
+            responsive: true,
+            innerScroll: true,
+            buttons: [
+                { text: $t('Cancel'), class: 'action-secondary', click: function () { this.closeModal(); } },
+                {
+                    text: $t('Reset all overrides'),
+                    class: 'action-tertiary _danger',
+                    click: function () {
+                        if (!confirm($t('Clear every saved column override and reload?'))) { return; }
+                        $.ajax({
+                            url: URLS.reset,
+                            method: 'POST',
+                            data: { form_key: window.FORM_KEY || '' },
+                            dataType: 'json'
+                        }).done(function () { location.reload(); });
+                    }
+                },
+                {
+                    text: $t('Apply Changes'),
+                    class: 'action-primary',
+                    click: function () {
+                        if (Object.keys(pending).length === 0) {
+                            this.closeModal();
+                            return;
+                        }
+                        var form = new FormData();
+                        form.append('form_key', window.FORM_KEY || '');
+                        form.append('isAjax', '1');
+                        Object.keys(pending).forEach(function (code) {
+                            Object.keys(pending[code]).forEach(function (field) {
+                                form.append('items[' + code + '][' + field + ']', pending[code][field]);
+                            });
+                        });
+                        $.ajax({
+                            url: URLS.save,
+                            method: 'POST',
+                            data: form,
+                            processData: false,
+                            contentType: false,
+                            dataType: 'json'
+                        }).done(function (resp) {
+                            if (resp && !resp.error) { location.reload(); }
+                            else { alert({ title: $t('Save failed'), content: (resp && resp.messages || []).join('\n') }); }
+                        }).fail(function () { alert({ title: $t('Save failed'), content: $t('Network error.') }); });
+                    }
+                }
+            ]
+        }, $body);
+
+        $body.trigger('openModal');
+    }
+
+    function openSmartPanel() {
+        $.ajax({
+            url: URLS.list,
+            method: 'GET',
+            dataType: 'json'
+        }).done(function (response) {
+            if (response && response.success && response.columns) {
+                buildSmartPanel(response.columns);
+            } else {
+                alert({ title: $t('Load failed'), content: (response && response.error) || $t('Could not load column list.') });
+            }
+        }).fail(function (xhr) {
+            alert({ title: $t('Load failed'), content: $t('Server error: ') + (xhr.statusText || 'unknown') });
+        });
+    }
+
+    // Try injecting now and again after a short delay (grid mounts async).
+    injectManageButton();
+    var tries = 0;
+    var iv = setInterval(function () {
+        injectManageButton();
+        if (++tries > 20 || $('.panth-pg-cols-btn').length) { clearInterval(iv); }
+    }, 250);
+
+    // ---------- Popup cell editor ----------------------------------------
+    // For cells whose column was flagged with panthPopupEditor (textarea,
+    // multiselect, tier_price, image, categories), we attach a pencil icon
+    // to the cell content. Click → fetches current value + options →
+    // opens a modal with the right input → submit posts to the standard
+    // inlineEdit endpoint.
+
+    function getProductId($cell) {
+        var $row = $cell.closest('tr');
+        return parseInt(
+            $row.attr('data-row-id')
+            || $row.find('input[type=checkbox]').first().val()
+            || $row.find('td').first().text().trim(),
+            10
+        ) || 0;
+    }
+
+    function getColumnCode($cell) {
+        return $cell.attr('data-index')
+            || $cell.attr('data-column')
+            || $cell.closest('[data-column]').attr('data-column')
+            || '';
+    }
+
+    function openCellEditor(productId, code) {
+        $.ajax({
+            url: URLS.cellForm,
+            method: 'GET',
+            data: { product_id: productId, attribute_code: code },
+            dataType: 'json'
+        }).done(function (response) {
+            if (!response || !response.success) {
+                alert({ title: $t('Cannot open editor'), content: (response && response.error) || $t('Server error.') });
+                return;
+            }
+            renderCellEditorModal(productId, code, response);
+        }).fail(function (xhr) {
+            alert({ title: $t('Cannot open editor'), content: $t('Server error: ') + (xhr.statusText || 'unknown') });
+        });
+    }
+
+    function renderCellEditorModal(productId, code, payload) {
+        var $body = $('<div class="panth-pg-cell-modal"></div>');
+        var $input;
+
+        switch (payload.editor_type) {
+            case 'textarea':
+                $input = $('<textarea class="admin__control-textarea" rows="8" style="width:100%"></textarea>').val(payload.value || '');
+                break;
+            case 'multiselect':
+                $input = renderSearchableMultiselect(payload);
+                break;
+            case 'select':
+                $input = renderSearchableSelect(payload);
+                break;
+            case 'tier_price':
+                $input = renderTierPriceEditor(payload.value || [], payload.options || {});
+                break;
+            case 'image':
+                $input = renderImageEditor(payload.value || '');
+                break;
+            default:
+                $input = $('<input type="text" class="admin__control-text" style="width:100%"/>').val(payload.value || '');
+        }
+
+        $body.append($('<p class="panth-pg-cell-modal__hint"></p>').text($t('Edit "') + payload.label + '" for product #' + productId));
+        $body.append($input);
+
+        modal({
+            title: payload.label,
+            modalClass: 'panth-pg-cell-edit',
+            type: 'popup',
+            buttons: [
+                { text: $t('Cancel'), class: 'action-secondary', click: function () { this.closeModal(); } },
+                {
+                    text: $t('Save'),
+                    class: 'action-primary',
+                    click: function () {
+                        var dialog = this;
+                        var newValue = collectEditorValue(payload.editor_type, $input);
+                        submitCellEdit(productId, code, newValue).done(function (resp) {
+                            if (resp && !resp.error) {
+                                dialog.closeModal();
+                                location.reload();
+                            } else {
+                                alert({ title: $t('Save failed'), content: (resp && resp.messages || []).join('\n') });
+                            }
+                        });
+                    }
+                }
+            ]
+        }, $body);
+
+        $body.trigger('openModal');
+    }
+
+    /**
+     * Searchable checkbox list for multiselect popup editor.
+     * Always-visible search input filters the option list on `input`
+     * event so long category trees / multi-select attribute lists stay
+     * navigable.
+     */
+    function renderSearchableMultiselect(payload) {
+        var $wrap = $('<div class="panth-pg-cell-modal__multi"></div>');
+        var $search = $('<input type="search" class="admin__control-text panth-pg-cell-modal__search" placeholder="' + $t('Type to filter…') + '"/>');
+        var $count = $('<small class="panth-pg-cell-modal__counter"></small>');
+        var $list = $('<div class="panth-pg-cell-modal__multi-list"></div>');
+        var current = Array.isArray(payload.value)
+            ? payload.value.map(String)
+            : (payload.value ? String(payload.value).split(',') : []);
+        var rows = [];
+        (payload.options || []).forEach(function (opt) {
+            var checked = current.indexOf(String(opt.value)) !== -1;
+            var $row = $('<label class="panth-pg-cell-modal__option"></label>');
+            var $cb = $('<input type="checkbox">').attr('value', opt.value).prop('checked', checked);
+            $row.append($cb).append($('<span></span>').text(' ' + opt.label));
+            rows.push({ el: $row, label: (opt.label || '').toLowerCase(), value: String(opt.value) });
+            $list.append($row);
+        });
+        function updateCount() {
+            var total = $list.find('input:checked').length;
+            $count.text(total + ' ' + (total === 1 ? $t('selected') : $t('selected')));
+        }
+        $list.on('change', 'input', updateCount);
+        updateCount();
+        $search.on('input', function () {
+            var q = this.value.toLowerCase().trim();
+            rows.forEach(function (r) {
+                r.el.toggle(!q || r.label.indexOf(q) !== -1);
+            });
+        });
+        var $bulk = $('<div class="panth-pg-cell-modal__bulk"></div>');
+        $bulk.append($('<button type=button class="action-tertiary"></button>').text($t('Select all')).on('click', function () {
+            $list.find('input:visible').prop('checked', true);
+            updateCount();
+        }));
+        $bulk.append($('<button type=button class="action-tertiary"></button>').text($t('Clear all')).on('click', function () {
+            $list.find('input').prop('checked', false);
+            updateCount();
+        }));
+        $wrap.append($search).append($count).append($bulk).append($list);
+        return $wrap;
+    }
+
+    /**
+     * Searchable single-select popup editor. Same UX as the multiselect
+     * but uses radio inputs so only one option is picked.
+     */
+    function renderSearchableSelect(payload) {
+        var $wrap = $('<div class="panth-pg-cell-modal__multi"></div>');
+        var $search = $('<input type="search" class="admin__control-text panth-pg-cell-modal__search" placeholder="' + $t('Type to filter…') + '"/>');
+        var $list = $('<div class="panth-pg-cell-modal__multi-list"></div>');
+        var rows = [];
+        var name = 'panth_select_' + Math.random().toString(36).slice(2);
+        var $clear = $('<label class="panth-pg-cell-modal__option"></label>');
+        $clear.append($('<input type="radio">').attr('name', name).attr('value', '').prop('checked', !payload.value));
+        $clear.append($('<span></span>').text(' ' + $t('— Not set —')));
+        $list.append($clear);
+        rows.push({ el: $clear, label: '' });
+        (payload.options || []).forEach(function (opt) {
+            var checked = String(opt.value) === String(payload.value);
+            var $row = $('<label class="panth-pg-cell-modal__option"></label>');
+            $row.append($('<input type="radio">').attr('name', name).attr('value', opt.value).prop('checked', checked));
+            $row.append($('<span></span>').text(' ' + opt.label));
+            rows.push({ el: $row, label: (opt.label || '').toLowerCase() });
+            $list.append($row);
+        });
+        $search.on('input', function () {
+            var q = this.value.toLowerCase().trim();
+            rows.forEach(function (r) {
+                r.el.toggle(!q || r.label.indexOf(q) !== -1);
+            });
+        });
+        $wrap.append($search).append($list);
+        return $wrap;
+    }
+
+    function collectEditorValue(editorType, $input) {
+        if (editorType === 'multiselect') {
+            return $input.find('input:checked').map(function () { return this.value; }).get();
+        }
+        if (editorType === 'select') {
+            var v = $input.find('input:checked').val();
+            return v === undefined ? '' : v;
+        }
+        if (editorType === 'image') {
+            return $input.find('.panth-pg-cell-modal__image-path').val() || '';
+        }
+        if (editorType === 'tier_price') {
+            var rows = [];
+            $input.find('.panth-pg-cell-modal__tier').each(function () {
+                var $r = $(this);
+                rows.push({
+                    website_id: parseInt($r.find('[data-f=website_id]').val(), 10) || 0,
+                    cust_group: parseInt($r.find('[data-f=cust_group]').val(), 10) || 0,
+                    qty: parseFloat($r.find('[data-f=qty]').val()) || 1,
+                    value: parseFloat($r.find('[data-f=value]').val()) || 0,
+                    value_type: $r.find('[data-f=value_type]').val() || 'fixed'
+                });
+            });
+            return rows;
+        }
+        return $input.val();
+    }
+
+    /**
+     * Image cell editor — current preview + drag-drop / click drop zone
+     * + upload progress + remove. On upload, hits our /cellEdit/upload
+     * endpoint which routes the file through Magento's MediaStorage
+     * Uploader and returns the saved relative path. The hidden path
+     * field's value is what gets POSTed on Save.
+     */
+    function renderImageEditor(currentPath) {
+        var $wrap = $('<div class="panth-pg-cell-modal__image"></div>');
+        var $preview = $('<img alt="" style="max-width:240px;max-height:240px;border:1px solid #e5e5e5;border-radius:4px;display:block;background:#fafafa"/>');
+        var $empty = $('<p></p>').text($t('No image set.'))
+            .css({ color: '#999', fontStyle: 'italic', margin: '0 0 8px' });
+        var $path = $('<input type="hidden" class="panth-pg-cell-modal__image-path"/>').val(currentPath || '');
+        var $pathLabel = $('<code></code>').css({ display: 'block', margin: '8px 0', fontSize: '11px', color: '#666', wordBreak: 'break-all' });
+
+        function refreshPreview(file) {
+            $path.val(file || '');
+            if (file && file !== 'no_selection') {
+                // URLS.mediaUrl already includes `/media/catalog/product/`,
+                // so just append the relative file path.
+                var prefix = URLS.mediaUrl.replace(/\/$/, '');
+                var path = file.charAt(0) === '/' ? file : '/' + file;
+                $preview.attr('src', prefix + path);
+                $preview.show();
+                $empty.hide();
+                $pathLabel.text(file);
+            } else {
+                $preview.hide();
+                $empty.show();
+                $pathLabel.text('');
+            }
+        }
+
+        var $drop = $('<div class="panth-pg-cell-modal__drop"></div>')
+            .css({
+                border: '2px dashed #bcd6ea',
+                background: '#f7fbfe',
+                color: '#1979c3',
+                padding: '20px',
+                textAlign: 'center',
+                borderRadius: '6px',
+                marginTop: '8px',
+                cursor: 'pointer'
+            })
+            .text($t('Drop an image here, or click to choose a file…'));
+        var $fileInput = $('<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none"/>');
+        var $progress = $('<p></p>').css({ fontSize: '12px', marginTop: '6px' }).hide();
+
+        function uploadFile(file) {
+            if (!file) { return; }
+            $progress.text($t('Uploading…')).css({ color: '#1979c3' }).show();
+            var form = new FormData();
+            form.append('image', file);
+            form.append('form_key', window.FORM_KEY || '');
+            $.ajax({
+                url: URLS.upload,
+                method: 'POST',
+                data: form,
+                processData: false,
+                contentType: false,
+                dataType: 'json'
+            }).done(function (response) {
+                if (response && response.success && response.file) {
+                    refreshPreview(response.file);
+                    $progress.text($t('Uploaded.')).css({ color: '#15803d' });
+                    setTimeout(function () { $progress.hide(); }, 1200);
+                } else {
+                    $progress.text((response && response.error) || $t('Upload failed.')).css({ color: '#b91c1c' });
+                }
+            }).fail(function () {
+                $progress.text($t('Upload failed.')).css({ color: '#b91c1c' });
+            });
+        }
+
+        $drop.on('click', function () { $fileInput.click(); });
+        $fileInput.on('change', function () {
+            if (this.files && this.files[0]) { uploadFile(this.files[0]); }
+        });
+        $drop.on('dragover', function (e) { e.preventDefault(); $(this).css('background', '#eaf3fb'); });
+        $drop.on('dragleave', function () { $(this).css('background', '#f7fbfe'); });
+        $drop.on('drop', function (e) {
+            e.preventDefault();
+            $(this).css('background', '#f7fbfe');
+            var dt = e.originalEvent.dataTransfer;
+            if (dt && dt.files && dt.files[0]) { uploadFile(dt.files[0]); }
+        });
+
+        var $clear = $('<button type="button" class="action-tertiary"></button>')
+            .text($t('Remove image'))
+            .css({ marginTop: '6px', color: '#b91c1c' })
+            .on('click', function () { refreshPreview(''); });
+
+        $wrap.append($preview).append($empty).append($pathLabel).append($drop).append($fileInput).append($progress).append($clear).append($path);
+        refreshPreview(currentPath);
+        return $wrap;
+    }
+
+    function renderTierPriceEditor(rows, options) {
+        var websites = (options && options.websites) || [{ value: 0, label: $t('All Websites') }];
+        var groups = (options && options.customer_groups) || [{ value: 32000, label: $t('All Groups') }];
+
+        var $wrap = $('<div></div>');
+        var $head = $('<div class="panth-pg-cell-modal__tier-head" style="display:grid;grid-template-columns:1fr 1fr 80px 100px 80px 32px;gap:6px;margin-bottom:4px;font-size:11px;color:#777;text-transform:uppercase"></div>');
+        ['Website', 'Group', 'Qty', 'Type', 'Value', ''].forEach(function (h) {
+            $head.append($('<span></span>').text(h));
+        });
+
+        var $list = $('<div class="panth-pg-cell-modal__tier-list"></div>');
+
+        function buildSelect(name, opts, current) {
+            var $s = $('<select class="admin__control-select"></select>').attr('data-f', name);
+            opts.forEach(function (o) {
+                $s.append($('<option></option>').val(o.value).text(o.label));
+            });
+            $s.val(String(current));
+            return $s;
+        }
+
+        function appendRow(r) {
+            r = r || {};
+            var $r = $('<div class="panth-pg-cell-modal__tier" style="display:grid;grid-template-columns:1fr 1fr 80px 100px 80px 32px;gap:6px;margin-bottom:6px;align-items:center"></div>');
+            $r.append(buildSelect('website_id', websites, r.website_id != null ? r.website_id : 0));
+            $r.append(buildSelect('cust_group', groups, r.cust_group != null ? r.cust_group : 32000));
+            $r.append($('<input class="admin__control-text" data-f=qty type="number" step="any" placeholder="Qty" />').val(r.qty || 1));
+            $r.append(
+                $('<select class="admin__control-select" data-f=value_type></select>')
+                    .append($('<option value="fixed">' + $t('Fixed') + '</option>'))
+                    .append($('<option value="percent">' + $t('Discount %') + '</option>'))
+                    .val(r.value_type || 'fixed')
+            );
+            $r.append($('<input class="admin__control-text" data-f=value type="number" step="any" placeholder="Value" />').val(r.value || 0));
+            $r.append($('<button type=button class="action-tertiary" title="' + $t('Remove') + '" style="font-size:18px;line-height:1">×</button>').on('click', function () { $r.remove(); }));
+            $list.append($r);
+        }
+
+        (rows || []).forEach(appendRow);
+
+        var $add = $('<button type=button class="action-secondary" style="margin-top:8px">+ ' + $t('Add Tier') + '</button>')
+            .on('click', function () { appendRow({}); });
+
+        $wrap.append($head).append($list).append($add);
+        return $wrap;
+    }
+
+    // Map virtual / display column codes to the real attribute the
+    // backend strategy is registered against. Keeps the JS UX clean
+    // (the cell column code can be anything) without forcing the PHP
+    // strategy registry to know about display aliases.
+    var SAVE_CODE_ALIAS = {
+        'panth_tier_price_label': 'tier_price',
+        'panth_categories': 'category_ids',
+        'panth_thumbnail': 'thumbnail'
+    };
+
+    function submitCellEdit(productId, code, value) {
+        var saveCode = SAVE_CODE_ALIAS[code] || code;
+        var form = new FormData();
+        form.append('form_key', window.FORM_KEY || '');
+        form.append('isAjax', '1');
+        form.append('store_id', '0');
+        if (Array.isArray(value)) {
+            if (value.length > 0 && typeof value[0] === 'object') {
+                form.append('items[' + productId + '][' + saveCode + ']', JSON.stringify(value));
+            } else if (value.length === 0) {
+                // Empty multiselect (cleared all checkboxes) — we still
+                // need PHP to see the key so the strategy can clear the
+                // existing assignments. Sending the sentinel `__empty__`
+                // lets the controller detect "intent to clear" without
+                // falsely treating it as a single empty option ID.
+                form.append('items[' + productId + '][' + saveCode + ']', '__empty__');
+            } else {
+                value.forEach(function (v) {
+                    form.append('items[' + productId + '][' + saveCode + '][]', v);
+                });
+            }
+        } else {
+            form.append('items[' + productId + '][' + saveCode + ']', value === null ? '' : String(value));
+        }
+        return $.ajax({
+            url: URLS.cellSave,
+            method: 'POST',
+            data: form,
+            processData: false,
+            contentType: false,
+            dataType: 'json'
+        });
+    }
+
+    // Column codes that open the popup editor on cell click. Populated
+    // server-side: hardcoded set + every product attribute whose
+    // frontend_input is multiselect or textarea. Lets Material / Color /
+    // Description and any custom multiselect attribute open the popup
+    // out of the box.
+    var POPUP_CELL_CODES = window.panthPgPopupCodes || [
+        'tier_price', 'panth_tier_price_label',
+        'category_ids', 'panth_categories',
+        'description', 'short_description',
+        'content', 'content_heading', 'page_content', 'block_content',
+        'thumbnail', 'image', 'small_image', 'panth_thumbnail'
+    ];
+
+    function isPopupCode(code) {
+        if (!code) { return false; }
+        if (POPUP_CELL_CODES.indexOf(code) !== -1) { return true; }
+        if (/^(short_)?description$/.test(code) || /content/.test(code)) { return true; }
+        return false;
+    }
+
+    /**
+     * Resolve the column code for a clicked `<td>` by looking up the
+     * matching `<th>` in the same table's <thead> and reading its KO
+     * viewmodel. Works regardless of whether Magento emits
+     * data-index/data-column on the td — robust across Magento versions.
+     */
+    function columnCodeForCell($cell) {
+        var direct = $cell.attr('data-index')
+            || $cell.attr('data-column')
+            || $cell.find('[data-column]').first().attr('data-column');
+        if (direct) { return direct; }
+
+        var $row = $cell.closest('tr');
+        var idx = $row.children('td').index($cell[0]);
+        if (idx < 0) { return ''; }
+        var $headerTh = $cell.closest('table').find('thead tr').first().children('th').eq(idx);
+        if (!$headerTh.length) { return ''; }
+        // Try KO context first — it has the authoritative column code.
+        try {
+            var ctx = ko.contextFor($headerTh[0]);
+            if (ctx && ctx.$col) {
+                var col = typeof ctx.$col === 'function' ? ctx.$col() : ctx.$col;
+                if (col && (col.index || col.name)) {
+                    return col.index || col.name;
+                }
+            }
+            if (ctx && ctx.column && (ctx.column.index || ctx.column.name)) {
+                return ctx.column.index || ctx.column.name;
+            }
+        } catch (e) { /* ignore — fall back to attribute scan */ }
+        return $headerTh.attr('data-sort')
+            || $headerTh.attr('data-index')
+            || $headerTh.attr('data-column')
+            || '';
+    }
+
+    // Image-role columns get a hover overlay with View / Edit buttons
+    // — keeps Magento's preview behavior intact (clicking the small
+    // thumbnail still opens the standard preview popup) but exposes
+    // an explicit "Edit" action without polluting the grid with always-
+    // visible icons.
+    var IMAGE_CELL_CODES = ['thumbnail', 'panth_thumbnail', 'image', 'small_image', 'swatch_image'];
+
+    function isImageCode(code) {
+        return IMAGE_CELL_CODES.indexOf(code) !== -1;
+    }
+
+    // Click any cell whose column code is in the popup list → open
+    // editor. Listens on `td` directly so empty cells respond.
+    // Image cells skipped here — the hover overlay handles edit + view.
+    $(document).on('click.panthCellPopup', 'table.data-grid tbody td', function (event) {
+        var $cell = $(this);
+        if ($(event.target).is('input,button,select,textarea,a,label,.action-menu-item')) {
+            return;
+        }
+        var code = columnCodeForCell($cell);
+        if (!code || !isPopupCode(code) || isImageCode(code)) { return; }
+        event.preventDefault();
+        event.stopPropagation();
+        var productId = getProductId($cell);
+        if (!productId) {
+            alert({ title: $t('Cannot edit'), content: $t('Could not detect product ID for this row.') });
+            return;
+        }
+        openCellEditor(productId, code);
+    });
+
+    // Attach View/Edit hover overlay to every image cell.
+    $(document).on('mouseenter.panthImgHover', 'table.data-grid tbody td', function () {
+        var $cell = $(this);
+        if ($cell.data('panthImgOverlay')) { return; }
+        var code = columnCodeForCell($cell);
+        if (!isImageCode(code)) { return; }
+        $cell.data('panthImgOverlay', true);
+
+        $cell.css('position', 'relative');
+
+        var viewIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        var editIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+
+        var $overlay = $('<div class="panth-pg-img-overlay"></div>');
+        var $view = $('<button type="button" class="panth-pg-img-overlay__btn _view" title="' + $t('View') + '">' + viewIcon + '</button>');
+        var $edit = $('<button type="button" class="panth-pg-img-overlay__btn _edit" title="' + $t('Edit') + '">' + editIcon + '</button>');
+        $overlay.append($view).append($edit);
+        $cell.append($overlay);
+
+        $view.on('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Trigger Magento's standard thumbnail preview by clicking
+            // the underlying image (which has the KO handler attached).
+            var $img = $cell.find('img').first();
+            if ($img.length) { $img.trigger('click'); }
+        });
+        $edit.on('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var productId = getProductId($cell);
+            if (!productId) { return; }
+            openCellEditor(productId, code);
+        });
+    });
+
+    $('<style>'
+        + 'td.panth-pg-popup-cell { cursor: pointer; }'
+        + 'td.panth-pg-popup-cell:hover { background: rgba(25, 121, 195, 0.04); }'
+        + '.panth-pg-img-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(48, 48, 48, 0.55); opacity: 0; transition: opacity 0.15s; pointer-events: none; }'
+        + 'td:hover .panth-pg-img-overlay { opacity: 1; pointer-events: auto; }'
+        + '.panth-pg-img-overlay__btn { width: 30px; height: 30px; border-radius: 50%; border: 0; background: #fff; color: #1979c3; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); padding: 0; display: inline-flex; align-items: center; justify-content: center; transition: transform 0.12s, background 0.12s, color 0.12s; }'
+        + '.panth-pg-img-overlay__btn:hover { transform: scale(1.08); background: #1979c3; color: #fff; }'
+        + '.panth-pg-img-overlay__btn._edit:hover { background: #f0ad4e; color: #fff; }'
+
+        // --- Horizontal scrollbar for wide product grid -------------------
+        // When the admin enables many columns the table outgrows the page
+        // and gets clipped on the right. Force a horizontal scrollbar on
+        // the outer grid container so wide tables stay navigable.
+        + '.admin__data-grid-outer-wrap { overflow-x: auto !important; overflow-y: visible; }'
+        + '.admin__data-grid-wrap { overflow-x: visible !important; }'
+        + '.admin__data-grid-wrap table.data-grid { min-width: 100%; width: auto; }'
+        // Sticky-style first columns (checkbox + ID) stay anchored while
+        // the rest of the columns scroll — only when scroll is needed.
+        + '.admin__data-grid-outer-wrap::-webkit-scrollbar { height: 10px; }'
+        + '.admin__data-grid-outer-wrap::-webkit-scrollbar-thumb { background: #c5c5c5; border-radius: 4px; }'
+        + '.admin__data-grid-outer-wrap::-webkit-scrollbar-thumb:hover { background: #999; }'
+        + '.admin__data-grid-outer-wrap::-webkit-scrollbar-track { background: #f5f5f5; }'
+        + '</style>').appendTo('head');
+
+    // Visual affordance — pointer cursor + blue hover tint + ✎ icon on
+    // popup cells. Applied via a delegated mouseover that walks thead
+    // each time (so dynamic AJAX rerenders pick it up automatically).
+    $(document).on('mouseenter.panthCellPopup', 'table.data-grid tbody td', function () {
+        var $cell = $(this);
+        if ($cell.data('panthHinted')) { return; }
+        $cell.data('panthHinted', true);
+        var code = columnCodeForCell($cell);
+        if (isPopupCode(code)) {
+            $cell.addClass('panth-pg-popup-cell');
+        }
+    });
+});
+</script>

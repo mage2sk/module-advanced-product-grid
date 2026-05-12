@@ -1,0 +1,95 @@
+<div class="admin__action-dropdown-wrap admin__data-grid-action-columns panth-pg-cols"
+     data-bind="collapsible: true, css: { _active: opened }">
+    <button class="admin__action-dropdown" type="button" data-bind="toggleCollapsible">
+        <span class="admin__action-dropdown-text" data-bind="i18n: 'Columns'">Columns</span>
+    </button>
+    <div class="admin__action-dropdown-menu panth-pg-cols__menu" data-bind="visible: opened">
+
+        <div class="panth-pg-cols__header">
+            <strong data-bind="text: getHeaderMessage()"></strong>
+            <input type="search" class="panth-pg-cols__search admin__control-text"
+                   data-bind="textInput: searchQuery, attr: { placeholder: $t('Filter columns by name or code…') }"/>
+        </div>
+
+        <nav class="panth-pg-cols__tabs">
+            <!-- ko foreach: getTabs() -->
+                <button type="button"
+                        data-bind="css: { _active: $parent.activeTab === id }, click: function () { $parent.setTab(id); }">
+                    <span data-bind="text: label"></span>
+                    <span class="panth-pg-cols__tab-counter"
+                          data-bind="text: $parent.visibleCountInTab(id) + '/' + $parent.countInTab(id)"></span>
+                </button>
+            <!-- /ko -->
+        </nav>
+
+        <div class="panth-pg-cols__bulk-actions">
+            <button type="button" class="action-tertiary" data-bind="click: showAllInTab, i18n: 'Show all'"></button>
+            <button type="button" class="action-tertiary" data-bind="click: hideAllInTab, i18n: 'Hide all'"></button>
+            <button type="button" class="action-tertiary _danger" data-bind="click: resetOverrides, i18n: 'Reset overrides'"></button>
+        </div>
+
+        <div class="panth-pg-cols__list">
+            <!-- ko foreach: currentTabColumns() -->
+                <div class="panth-pg-cols__row" data-bind="css: { _hidden: !$data.visible() }">
+                    <span class="panth-pg-cols__drag" title="Sort order">≡</span>
+
+                    <label class="panth-pg-cols__toggle" title="Show / hide in grid">
+                        <input type="checkbox" data-bind="checked: $data.visible, event: { change: function () { $parent.toggleVisible($data); } }"/>
+                        <span class="panth-pg-cols__slider"></span>
+                    </label>
+
+                    <div class="panth-pg-cols__label">
+                        <input type="text" class="panth-pg-cols__name admin__control-text"
+                               data-bind="
+                                   attr: { placeholder: $parent.getOriginalLabel($data) },
+                                   value: $parent.getCustomLabel($data),
+                                   valueUpdate: 'input',
+                                   event: { change: function (data, ev) { $parent.updateCustomLabel($data, ev.target.value); } }
+                               "/>
+                        <small class="panth-pg-cols__code" data-bind="text: $parent.getColumnCode($data)"></small>
+                    </div>
+
+                    <span class="panth-pg-cols__type"
+                          data-bind="text: $parent.getType($data),
+                                     css: 'panth-pg-cols__type--' + $parent.getType($data)"></span>
+
+                    <label class="panth-pg-cols__chip" title="Inline editable in grid">
+                        <input type="checkbox" data-bind="
+                            checked: $parent.isEditable($data),
+                            event: { change: function () { $parent.toggleEditable($data); } }"/>
+                        <span data-bind="i18n: 'Edit'"></span>
+                    </label>
+
+                    <label class="panth-pg-cols__chip" title="Show filter in grid toolbar">
+                        <input type="checkbox" data-bind="
+                            checked: $parent.isFilterable($data),
+                            event: { change: function () { $parent.toggleFilterable($data); } }"/>
+                        <span data-bind="i18n: 'Filter'"></span>
+                    </label>
+
+                    <input type="number" class="panth-pg-cols__order admin__control-text"
+                           data-bind="
+                               value: $parent.getSortOrder($data),
+                               valueUpdate: 'input',
+                               event: { change: function (data, ev) { $parent.updateSortOrder($data, ev.target.value); } }
+                           " min="0" step="1"/>
+                </div>
+            <!-- /ko -->
+            <div class="panth-pg-cols__empty"
+                 data-bind="visible: currentTabColumns().length === 0">
+                <span data-bind="i18n: 'No columns in this tab match your search.'"></span>
+            </div>
+        </div>
+
+        <div class="panth-pg-cols__footer">
+            <span class="panth-pg-cols__dirty-flag" data-bind="visible: dirty">
+                <span data-bind="i18n: 'Unsaved changes'"></span>
+            </span>
+            <div>
+                <button type="button" class="action-tertiary" data-bind="click: function () { location.reload(); }, i18n: 'Cancel'"></button>
+                <button type="button" class="action-primary"
+                        data-bind="click: applyAll, disable: !dirty || saving, css: { _saving: saving }, i18n: 'Apply changes'"></button>
+            </div>
+        </div>
+    </div>
+</div>

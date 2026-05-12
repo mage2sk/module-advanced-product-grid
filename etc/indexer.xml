@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Indexer/etc/indexer.xsd">
+    <indexer id="panth_product_grid_qty_sold" view_id="panth_product_grid_qty_sold"
+             class="Panth\AdvancedProductGrid\Model\Indexer\QtySold">
+        <title translate="true">Product Qty Sold</title>
+        <description translate="true">Aggregate qty sold per product into panth_product_grid_qty_sold for the admin grid column.</description>
+    </indexer>
+</config>

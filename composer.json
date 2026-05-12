@@ -1,0 +1,60 @@
+{
+    "name": "mage2kishan/module-advanced-product-grid",
+    "description": "Advanced Product Grid for Magento 2 admin — inline edit every column (text, select, multiselect, date, price, image, tier price), auto-discover EAV attributes, 20+ extra columns (thumbnail, categories, availability, low stock, qty sold, tier prices, storefront URL), tabbed Manage Columns panel with rename + reorder, smart filters, modal editors for textarea / multiselect / images / tier prices, qty-sold indexer, unsaved-changes guard, and CSV/XML export limited to visible columns. Works on Luma and Hyva admin themes.",
+    "type": "magento2-module",
+    "version": "1.0.0",
+    "license": "proprietary",
+    "keywords": [
+        "magento2",
+        "magento2-module",
+        "admin",
+        "product-grid",
+        "inline-edit",
+        "mass-edit",
+        "catalog",
+        "eav",
+        "tier-price",
+        "msi",
+        "export",
+        "indexer",
+        "hyva",
+        "luma",
+        "panth"
+    ],
+    "homepage": "https://kishansavaliya.com",
+    "support": {
+        "email": "kishansavaliyakb@gmail.com",
+        "source": "https://github.com/mage2sk/module-advanced-product-grid"
+    },
+    "authors": [
+        {
+            "name": "Kishan Savaliya",
+            "email": "kishansavaliyakb@gmail.com",
+            "homepage": "https://kishansavaliya.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "~8.1.0||~8.2.0||~8.3.0||~8.4.0",
+        "mage2kishan/module-core": "^1.0",
+        "magento/framework": "^103.0",
+        "magento/module-backend": "^102.0",
+        "magento/module-catalog": "^104.0",
+        "magento/module-catalog-inventory": "^100.4",
+        "magento/module-eav": "^102.1",
+        "magento/module-store": "^101.1",
+        "magento/module-ui": "^101.2"
+    },
+    "suggest": {
+        "magento/module-inventory-api": "Adds per-source Salable Qty + per-source Quantity columns when MSI is installed.",
+        "magento/module-configurable-product": "Enables the Parent SKU column when configurable products are in use."
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "Panth\\AdvancedProductGrid\\": ""
+        }
+    }
+}

@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <!--
+        Force the qty-sold mview subscription onto the sales DB
+        connection so it works under split-DB deployments.
+    -->
+    <type name="Magento\Framework\Mview\View\Subscription">
+        <plugin name="panth_pg_qty_sold_sales_connection"
+                type="Panth\AdvancedProductGrid\Plugin\Mview\SalesConnectionPlugin"
+                sortOrder="10"/>
+    </type>
+
+    <!--
+        Inline-edit save dispatcher with a registry of per-attribute strategies.
+        Lives in global di.xml (not adminhtml) so it can be unit-tested + reused
+        from any area; the controllers themselves remain admin-gated.
+    -->
+    <type name="Panth\AdvancedProductGrid\Model\InlineEdit\StrategyResolver">
+        <arguments>
+            <argument name="strategies" xsi:type="array">
+                <item name="qty" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\QtyStrategy</item>
+                <item name="category_ids" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\CategoryIdsStrategy</item>
+                <item name="tier_price" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\TierPriceStrategy</item>
+                <item name="weight" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\WeightStrategy</item>
+                <item name="visibility" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\VisibilityStrategy</item>
+                <item name="url_key" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\UrlKeyStrategy</item>
+                <item name="panth_availability" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\AvailabilityStrategy</item>
+                <item name="panth_backorders" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\BackordersStrategy</item>
+                <item name="image" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\ImageRoleStrategy</item>
+                <item name="small_image" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\ImageRoleStrategy</item>
+                <item name="thumbnail" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\ImageRoleStrategy</item>
+                <item name="swatch_image" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\ImageRoleStrategy</item>
+            </argument>
+            <argument name="defaultStrategy" xsi:type="object">Panth\AdvancedProductGrid\Model\InlineEdit\Strategy\GenericAttributeStrategy</argument>
+        </arguments>
+    </type>
+</config>
