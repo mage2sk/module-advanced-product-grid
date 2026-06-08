@@ -113,7 +113,7 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
 
     // 2) Inject a "⚙ Manage Columns" button next to the native Columns
     //    dropdown. Clicking it opens a slide-in modal with the full smart
-    //    panel — tabbed by group, inline rename, toggles, sort order.
+    //    panel - tabbed by group, inline rename, toggles, sort order.
     /**
      * Replace Magento's native Columns dropdown with our own trigger that
      * uses the SAME admin__action-dropdown markup (so the chevron icon
@@ -221,7 +221,7 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
             $tabs.append($tab);
         });
 
-        var $dirty = $('<div class="panth-pg-cols-panel__dirty"></div>').text($t('You have unsaved changes — click Apply to save.')).hide();
+        var $dirty = $('<div class="panth-pg-cols-panel__dirty"></div>').text($t('You have unsaved changes - click Apply to save.')).hide();
 
         $body.append($tabs).append($content).append($dirty);
         renderGroup(activeGroup);
@@ -512,7 +512,7 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
     }
 
     /**
-     * Image cell editor — current preview + drag-drop / click drop zone
+     * Image cell editor - current preview + drag-drop / click drop zone
      * + upload progress + remove. On upload, hits our /cellEdit/upload
      * endpoint which routes the file through Magento's MediaStorage
      * Uploader and returns the saved relative path. The hidden path
@@ -675,7 +675,7 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
             if (value.length > 0 && typeof value[0] === 'object') {
                 form.append('items[' + productId + '][' + saveCode + ']', JSON.stringify(value));
             } else if (value.length === 0) {
-                // Empty multiselect (cleared all checkboxes) — we still
+                // Empty multiselect (cleared all checkboxes) - we still
                 // need PHP to see the key so the strategy can clear the
                 // existing assignments. Sending the sentinel `__empty__`
                 // lets the controller detect "intent to clear" without
@@ -723,7 +723,7 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
      * Resolve the column code for a clicked `<td>` by looking up the
      * matching `<th>` in the same table's <thead> and reading its KO
      * viewmodel. Works regardless of whether Magento emits
-     * data-index/data-column on the td — robust across Magento versions.
+     * data-index/data-column on the td - robust across Magento versions.
      */
     function columnCodeForCell($cell) {
         var direct = $cell.attr('data-index')
@@ -736,7 +736,7 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
         if (idx < 0) { return ''; }
         var $headerTh = $cell.closest('table').find('thead tr').first().children('th').eq(idx);
         if (!$headerTh.length) { return ''; }
-        // Try KO context first — it has the authoritative column code.
+        // Try KO context first - it has the authoritative column code.
         try {
             var ctx = ko.contextFor($headerTh[0]);
             if (ctx && ctx.$col) {
@@ -748,7 +748,7 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
             if (ctx && ctx.column && (ctx.column.index || ctx.column.name)) {
                 return ctx.column.index || ctx.column.name;
             }
-        } catch (e) { /* ignore — fall back to attribute scan */ }
+        } catch (e) { /* ignore - fall back to attribute scan */ }
         return $headerTh.attr('data-sort')
             || $headerTh.attr('data-index')
             || $headerTh.attr('data-column')
@@ -756,7 +756,7 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
     }
 
     // Image-role columns get a hover overlay with View / Edit buttons
-    // — keeps Magento's preview behavior intact (clicking the small
+    // - keeps Magento's preview behavior intact (clicking the small
     // thumbnail still opens the standard preview popup) but exposes
     // an explicit "Edit" action without polluting the grid with always-
     // visible icons.
@@ -768,7 +768,7 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
 
     // Click any cell whose column code is in the popup list → open
     // editor. Listens on `td` directly so empty cells respond.
-    // Image cells skipped here — the hover overlay handles edit + view.
+    // Image cells skipped here - the hover overlay handles edit + view.
     $(document).on('click.panthCellPopup', 'table.data-grid tbody td', function (event) {
         var $cell = $(this);
         if ($(event.target).is('input,button,select,textarea,a,label,.action-menu-item')) {
@@ -839,14 +839,14 @@ require(['jquery', 'ko', 'uiRegistry', 'Magento_Ui/js/modal/modal', 'Magento_Ui/
         + '.admin__data-grid-wrap { overflow-x: visible !important; }'
         + '.admin__data-grid-wrap table.data-grid { min-width: 100%; width: auto; }'
         // Sticky-style first columns (checkbox + ID) stay anchored while
-        // the rest of the columns scroll — only when scroll is needed.
+        // the rest of the columns scroll - only when scroll is needed.
         + '.admin__data-grid-outer-wrap::-webkit-scrollbar { height: 10px; }'
         + '.admin__data-grid-outer-wrap::-webkit-scrollbar-thumb { background: #c5c5c5; border-radius: 4px; }'
         + '.admin__data-grid-outer-wrap::-webkit-scrollbar-thumb:hover { background: #999; }'
         + '.admin__data-grid-outer-wrap::-webkit-scrollbar-track { background: #f5f5f5; }'
         + '</style>').appendTo('head');
 
-    // Visual affordance — pointer cursor + blue hover tint + ✎ icon on
+    // Visual affordance - pointer cursor + blue hover tint + ✎ icon on
     // popup cells. Applied via a delegated mouseover that walks thead
     // each time (so dynamic AJAX rerenders pick it up automatically).
     $(document).on('mouseenter.panthCellPopup', 'table.data-grid tbody td', function () {
