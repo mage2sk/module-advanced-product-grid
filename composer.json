@@ -2,7 +2,7 @@
     "name": "mage2kishan/module-advanced-product-grid",
     "description": "Advanced Product Grid for Magento 2 admin — inline edit every column (text, select, multiselect, date, price, image, tier price), auto-discover EAV attributes, 20+ extra columns (thumbnail, categories, availability, low stock, qty sold, tier prices, storefront URL), tabbed Manage Columns panel with rename + reorder, smart filters, modal editors for textarea / multiselect / images / tier prices, qty-sold indexer, unsaved-changes guard, and CSV/XML export limited to visible columns. Works on Luma and Hyva admin themes.",
     "type": "magento2-module",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "license": "proprietary",
     "keywords": [
         "magento2",

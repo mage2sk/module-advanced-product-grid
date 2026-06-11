@@ -43,19 +43,21 @@ class OrderSaveAfter implements ObserverInterface
         }
         $ids = array_values(array_unique($productIds));
         $registry = $this->indexerRegistry;
-        $this->resource->getConnection()->getTransactionLevel() > 0
-            ? $this->resource->getConnection()->addCommitCallback(static function () use ($registry, $ids) {
-                $indexer = $registry->get(QtySoldInvalidate::INDEXER_ID);
-                if ($indexer->isScheduled()) {
-                    return;
-                }
+        $runner = static function () use ($registry, $ids): void {
+            $indexer = $registry->get(QtySoldInvalidate::INDEXER_ID);
+            if (!$indexer->isScheduled()) {
                 $indexer->reindexList($ids);
-            })
-            : (function () use ($registry, $ids) {
-                $indexer = $registry->get(QtySoldInvalidate::INDEXER_ID);
-                if (!$indexer->isScheduled()) {
-                    $indexer->reindexList($ids);
-                }
-            })();
+            }
+        };
+        // The DB adapter has no addCommitCallback(); commit callbacks live on
+        // the resource model (AbstractDb). Defer until the wrapping order
+        // transaction commits, or run immediately when there is none.
+        if ($order instanceof \Magento\Framework\Model\AbstractModel
+            && $this->resource->getConnection('sales')->getTransactionLevel() > 0
+        ) {
+            $order->getResource()->addCommitCallback($runner);
+        } else {
+            $runner();
+        }
     }
 }
