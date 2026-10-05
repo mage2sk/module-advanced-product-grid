@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <panth_product_grid>
+            <general>
+                <enabled>1</enabled>
+            </general>
+            <editing>
+                <mode>multi</mode>
+                <confirm_navigation>1</confirm_navigation>
+            </editing>
+            <columns>
+                <linked_products_qty>3</linked_products_qty>
+                <low_stock_threshold>5</low_stock_threshold>
+            </columns>
+            <qty_sold>
+                <enabled>1</enabled>
+                <date_from>-90 days</date_from>
+                <date_to>now</date_to>
+                <statuses>complete,processing</statuses>
+                <include_refunded>0</include_refunded>
+            </qty_sold>
+            <modification>
+                <qty_to_stock>1</qty_to_stock>
+                <show_qty_integer>0</show_qty_integer>
+            </modification>
+            <export>
+                <visible_columns_only>1</visible_columns_only>
+            </export>
+        </panth_product_grid>
+    </default>
+</config>

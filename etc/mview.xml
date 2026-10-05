@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Panth Infotech. All rights reserved.
+ *
+ * Triggers fire from sales_order_item; the indexer recomputes the affected
+ * products. Subscriptions inherit the sales DB connection automatically
+ * when sales tables live on a split connection.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Mview/etc/mview.xsd">
+    <view id="panth_product_grid_qty_sold" class="Panth\AdvancedProductGrid\Model\Indexer\QtySold" group="indexer">
+        <subscriptions>
+            <table name="sales_order_item" entity_column="product_id"/>
+        </subscriptions>
+    </view>
+</config>

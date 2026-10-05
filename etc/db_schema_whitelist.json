@@ -1,0 +1,39 @@
+{
+    "panth_product_grid_qty_sold": {
+        "column": {
+            "product_id": true,
+            "qty_sold": true,
+            "indexed_at": true
+        },
+        "constraint": {
+            "PRIMARY": true
+        },
+        "index": {
+            "PANTH_PRODUCT_GRID_QTY_SOLD_QTY_SOLD": true
+        }
+    },
+    "panth_product_grid_column_config": {
+        "column": {
+            "config_id": true,
+            "attribute_code": true,
+            "is_visible": true,
+            "is_editable": true,
+            "is_filterable": true,
+            "in_export": true,
+            "is_required": true,
+            "custom_label": true,
+            "sort_order": true,
+            "default_width": true,
+            "marker_color": true,
+            "editor_type_override": true,
+            "updated_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "PANTH_PRODUCT_GRID_COLUMN_CONFIG_ATTR_CODE": true
+        },
+        "index": {
+            "PANTH_PRODUCT_GRID_COLUMN_CONFIG_VISIBLE": true
+        }
+    }
+}

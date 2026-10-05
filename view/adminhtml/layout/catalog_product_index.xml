@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceBlock name="head.additional">
+            <block class="Magento\Backend\Block\Template"
+                   name="panth_pg_rename_header_init"
+                   ifconfig="panth_product_grid/general/enabled"
+                   template="Panth_AdvancedProductGrid::rename-header-init.phtml">
+                <arguments>
+                    <argument name="view_model" xsi:type="object">Panth\AdvancedProductGrid\ViewModel\GridBootstrap</argument>
+                </arguments>
+            </block>
+        </referenceBlock>
+    </body>
+</page>

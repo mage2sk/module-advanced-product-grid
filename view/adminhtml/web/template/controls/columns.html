@@ -1,0 +1,34 @@
+<div class="panth-pg-columns admin__data-grid-action-bookmarks">
+    <button type="button" class="action-default" data-bind="click: switchVisibility, css: { _active: opened }">
+        <span class="action-menu-item" translate="'Columns'"></span>
+    </button>
+    <div class="panth-pg-columns__pane" data-bind="visible: opened">
+        <ul class="panth-pg-columns__tabs">
+            <li data-bind="css: { _active: activeTab === 'default' }, click: function () { setTab('default'); }">
+                <span translate="'Default'"></span>
+            </li>
+            <li data-bind="css: { _active: activeTab === 'extra' }, click: function () { setTab('extra'); }">
+                <span translate="'Extra'"></span>
+            </li>
+            <li data-bind="css: { _active: activeTab === 'attribute' }, click: function () { setTab('attribute'); }">
+                <span translate="'Attributes'"></span>
+            </li>
+        </ul>
+        <!-- ko foreach: groupedColumns()[activeTab] -->
+            <div class="panth-pg-columns__row">
+                <label>
+                    <input type="checkbox" data-bind="checked: $parent.visible(), click: function () { $parents[1].toggleVisible($data); }"/>
+                    <span data-bind="text: label"></span>
+                </label>
+                <label>
+                    <input type="checkbox" data-bind="checked: ($data.config && $data.config.panthGridColumn && $data.config.panthGridColumn.editable), click: function () { $parents[1].toggleEditable($data); }"/>
+                    <span translate="'Editable'"></span>
+                </label>
+                <label>
+                    <input type="checkbox" data-bind="checked: ($data.config && $data.config.panthGridColumn && $data.config.panthGridColumn.filterable), click: function () { $parents[1].toggleFilterable($data); }"/>
+                    <span translate="'Filterable'"></span>
+                </label>
+            </div>
+        <!-- /ko -->
+    </div>
+</div>
